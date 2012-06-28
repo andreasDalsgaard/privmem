@@ -5,7 +5,7 @@ http://wala.sourceforge.net/wiki/index.php/UserGuide:Getting_Started
 to set up wala.
 
 Import scjChecker from:
-git+ssh://tipca.imm.dtu.dk/home/andreasd/scjChecker/.git
+git://github.com/andreasDalsgaard/privmem.git
 
 Import launchers from the imported git repository. 
 Adapt the SWTPointsTo configuration based on the ScjMemoryScopeAnalysis configuration(gives me strange errors - will have to look into that later)
