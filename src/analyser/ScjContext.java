@@ -21,7 +21,7 @@ import analyser.ScjScope;
 
 public class ScjContext implements Context {
 
-	HashSet<ScjScopeStack> scopeStacks;
+	ScjScopeStack scopeStack;
 	private ScjScope lastGetCurrentMemoryScope = null;
 	
 	public ScjContext(ScjContext parent, String scopeName, ScjScopeType type) {
@@ -37,41 +37,26 @@ public class ScjContext implements Context {
 	    
 	    if (type == ScjScopeType.IMMORTAL)
 	    {
-	    	this.scopeStacks = new HashSet<ScjScopeStack>();
-	    	this.scopeStacks.add(new ScjScopeStack());	    	
+	    	this.scopeStack = new ScjScopeStack();	    	
 	    }
 	    else
 	    {
-	    	this.scopeStacks = parent.cloneScopeStacks();
+	    	this.scopeStack = parent.getScopeStack();
 	    }
 	    
-	    Iterator<ScjScopeStack> ssIter = this.scopeStacks.iterator();
-	    
-	    while (ssIter.hasNext())
-	    {	    	
-	    	ssIter.next().add(new ScjScope(scopeName, type));	    	
-	    }	    
+	    this.scopeStack.add(new ScjScope(scopeName, type));	    
 	}
 	
 	/*** Copy constructor ***/
 	public ScjContext(ScjContext parent) 
 	{
-		this.scopeStacks = parent.cloneScopeStacks();
+		this.scopeStack = parent.getScopeStack();
 		this.setLastGetCurrentScope(parent.getLastGetCurrentScope());
 	}
 	
-	private HashSet<ScjScopeStack> cloneScopeStacks()
-	{
-		HashSet<ScjScopeStack> clone = new HashSet<ScjScopeStack>();
-		
-		Iterator<ScjScopeStack> ssIter = this.scopeStacks.iterator();
-		    
-		while (ssIter.hasNext())
-		{			
-		  	clone.add(ssIter.next().deepCopy());	    	
-		}	   
-		
-		return clone;
+	private ScjScopeStack getScopeStack()
+	{		
+		return this.scopeStack.deepCopy();
 	}
 
 	public boolean less(ScjContext c)
@@ -79,79 +64,41 @@ public class ScjContext implements Context {
 		if (c == null)
 			return false;
 		
-		Iterator<ScjScopeStack> ssIter = c.scopeStacks.iterator();
-		Iterator<ScjScopeStack> ss2Iter = this.scopeStacks.iterator();
-		boolean result = true; 
-		
-		ScjScopeStack ss;
-		while (ssIter.hasNext())
-		{
-			ss = ssIter.next();
-					
-			while (ss2Iter.hasNext())
-			{
-				if (!(result & ss2Iter.next().less(ss)) )
-					return false;					
-			}	   
-		}
-		
-		return true;		
+		return this.scopeStack.less(c.scopeStack);
 	}
 	
 	@Override
 	public boolean equals(Object o) {		
-	    return (o instanceof ScjContext) && ((ScjContext) o).scopeStacks.toString().equals(this.scopeStacks.toString());
+	    return (o instanceof ScjContext) && ((ScjContext) o).scopeStack.toString().equals(this.scopeStack.toString());
 	}
 
 	@Override
 	public int hashCode() {
-	    return scopeStacks.toString().hashCode();
+	    return scopeStack.toString().hashCode();
 	}
 
 	@Override
 	public String toString() {
-	    return this.getLastGetCurrentScope()+" "+scopeStacks.toString();
+	    return this.getLastGetCurrentScope()+" "+scopeStack.toString();
 	}
 	
 	public ContextItem get(ContextKey name) {
-		if (!this.scopeStacks.isEmpty())
+							  	
+	  	Iterator<ScjScope> ScjScopes = this.scopeStack.iterator();
+		
+		while( ScjScopes.hasNext() )
 		{
-			Iterator<ScjScopeStack> ssIter = this.scopeStacks.iterator();
-			
-			while (ssIter.hasNext())
-			{						  	
-			  	Iterator<ScjScope> ScjScopes = ssIter.next().iterator();
-				
-				while( ScjScopes.hasNext() )
-				{
-					ScjScope scope = ScjScopes.next();
-					if (scope.getName().equals(name) )
-						return scope; 
-				}
-			}	  
-			
+			ScjScope scope = ScjScopes.next();
+			if (scope.getName().equals(name) )
+				return scope; 
 		}
 		
 	    return null;
 	}
 	
 	public ScjScope getStackTop()
-	{
-		Iterator<ScjScopeStack> ssIter = this.scopeStacks.iterator();
-		ScjScope top = null; 
-		int i = 0;
-		
-		while (ssIter.hasNext())
-		{
-			i++;
-			ScjScopeStack next = ssIter.next();
-			top = next.getLast();			
-		}
-		
-		if (i > 1)
-			util.error("Currently only one stack is supported");		
-		
-		return top; 
+	{		
+		return this.scopeStack.getLast(); 
 	}
 
 	public ScjScope getLastGetCurrentScope() {
