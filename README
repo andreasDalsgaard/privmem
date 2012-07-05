@@ -4,7 +4,7 @@ Use eclipse and follow the guide:
 http://wala.sourceforge.net/wiki/index.php/UserGuide:Getting_Started
 to set up wala.
 
-Import scjChecker from:
+Import privmem from:
 git://github.com/andreasDalsgaard/privmem.git
 
 Import launchers from the imported git repository. 
