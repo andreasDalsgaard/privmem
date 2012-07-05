@@ -10,7 +10,6 @@
  ******************************************************************************/
 package analyser;
 
-import java.util.Hashtable;
 import com.ibm.wala.classLoader.CallSiteReference;
 import com.ibm.wala.classLoader.IClass;
 import com.ibm.wala.classLoader.IMethod;
@@ -26,12 +25,12 @@ import java.util.UUID;
 
 public class ScjContextSelector implements ContextSelector {
 		
-	private ScjContext immortalMemory = new ScjContext(null, "ImmortalMemory", ScjScopeType.IMMORTAL);
 	private IClass missionIClass = null;
-	private IClass PEHIClass;
-	int counter = 0;
-	private Hashtable<IMethod, ScjContext> methodContextMap = new Hashtable<IMethod,ScjContext>();
+	private IClass PEHIClass = null;	
+	int counter = 0;	
 	private ClassHierarchy cha;
+	private IClass ManagedMemoryIClass;
+	private IClass MemoryAreaIClass;	
 	
 	public ScjContextSelector(ClassHierarchy cha) 
 	{
@@ -41,62 +40,73 @@ public class ScjContextSelector implements ContextSelector {
 		if (this.missionIClass == null)
 			throw new IllegalArgumentException("No mission class in ClassHierarchy");
 		
-		this.PEHIClass = util.getIClass("Ljavax/safetycritical/PeriodicEventHandler", cha);
+		this.PEHIClass = util.getIClass("Ljavax/safetycritical/PeriodicEventHandler", cha);		
+		this.ManagedMemoryIClass  = util.getIClass("Ljavax/safetycritical/ManagedMemory", cha);		
+		this.MemoryAreaIClass  = util.getIClass("Ljavax/realtime/MemoryArea", cha);		
 	}
 	
 	public Context getCalleeTarget(CGNode caller, CallSiteReference site,
-			IMethod callee, InstanceKey[] actualParameters) {	
-				
+			IMethod callee, InstanceKey[] actualParameters) 
+	{	
 		ScjContext calleeContext;		
 	
 		// Handles the first nodes that is called from the synthetic fakeRoot
-		if (caller.getContext() instanceof ScjContext)
+		if (!(caller.getContext() instanceof ScjContext))		
 		{			
-			Context tmp = caller.getContext();	
-			calleeContext = (ScjContext) tmp;
-						
+			return new ScjContext(null, "Ljavax/realtime/ImmortalMemory", ScjScopeType.IMMORTAL);
+		}		
 		
-			if ( this.cha.isSubclassOf(callee.getDeclaringClass(),this.PEHIClass) && 
-					callee.getName().toString().equals("handleAsyncEvent")) 
-			{											
-				calleeContext = new ScjContext((ScjContext)tmp, callee.getDeclaringClass().getName().toString(), ScjScopeType.PEH);					
-			} else if (callee.getName().toString().equals("enterPrivateMemory") && callee.getDeclaringClass().getName().toString().equals("Ljavax/safetycritical/ManagedMemory")) 
-			{
-				calleeContext = new ScjContext((ScjContext)tmp, UUID.randomUUID().toString(), ScjScopeType.PM);				
-				
-			} else if (callee.getName().toString().equals("executeInArea") && callee.getDeclaringClass().getName().toString().equals("Ljavax/realtime/MemoryArea")) 
-			{	
-				if (calleeContext.getLastGetCurrentScope() != null)
-					calleeContext = new ScjContext((ScjContext)tmp, ((ScjContext)tmp).getLastGetCurrentScope().getName().toString(), ((ScjContext)tmp).getLastGetCurrentScope().getScopeType()); 
-				else {
-					calleeContext = new ScjContext((ScjContext)tmp, callee.getDeclaringClass().getName().toString(), ScjScopeType.UNKNOWN);
-				}
-			} else if (callee.getName().toString().equals("getCurrentManagedMemory") && callee.getDeclaringClass().getName().toString().equals("Ljavax/safetycritical/ManagedMemory")) 
-			{
-				((ScjContext)caller.getContext()).setLastGetCurrentScope(((ScjContext)tmp).getStackTop());				
-			} else if (callee.getName().toString().equals("startMission") && callee.getDeclaringClass().getName().toString().equals("javax/safetycritical/JopSystem")) 
-			{	
-				//XXX:JOP HACK!
-				calleeContext = new ScjContext(immortalMemory, 
-						"Ljavax/safetycritical/JopSystem", ScjScopeType.MISSION);
-			} else if (callee.getName().toString().equals("initialize")) 
-			{	
-				IClass declaringClass = callee.getDeclaringClass();
-								
-				if (callee.getClassHierarchy().isSubclassOf(declaringClass, this.missionIClass)) {
-					calleeContext = new ScjContext(immortalMemory, 
-							caller.getMethod().getDeclaringClass().getName().toString(), ScjScopeType.MISSION);			
-				}				
-			}
-		} else 
+		calleeContext = (ScjContext) caller.getContext();
+		
+		if (isSubclassOf(callee, this.PEHIClass) && 
+				isFuncName(callee, "handleAsyncEvent")) 
 		{
-			calleeContext = this.immortalMemory;
-		}	
-		
-		this.methodContextMap.put(callee, calleeContext);		
+			calleeContext = new ScjContext(calleeContext, callee.getDeclaringClass().getName().toString(), ScjScopeType.PM);
+		} else if (isSubclassOf(callee,this.ManagedMemoryIClass)) 
+		{			
+			if (isFuncName(callee, "enterPrivateMemory")) {
+				calleeContext = new ScjContext(calleeContext, getUniquePMName(), ScjScopeType.PM);
+			} else if (isFuncName(callee, "getCurrentManagedMemory")) {
+				((ScjContext)caller.getContext()).setLastGetCurrentScope(calleeContext.getStackTop());
+			}
+		} else if(isSubclassOf(callee,this.MemoryAreaIClass)) 
+		{					
+			if (isFuncName(callee, "executeInArea"))
+			{
+				if (calleeContext.getLastGetCurrentScope() != null)
+					calleeContext = new ScjContext(calleeContext, calleeContext.getLastGetCurrentScope().getName().toString(), calleeContext.getLastGetCurrentScope().getScopeType()); 
+				else
+					calleeContext = new ScjContext(calleeContext, callee.getDeclaringClass().getName().toString(), ScjScopeType.UNKNOWN);				
+			} else if (isFuncName(callee, "getMemoryArea"))
+			{
+					((ScjContext)caller.getContext()).setLastGetCurrentScope(calleeContext.getStackTop());
+			}
+		} else if (isFuncName(callee, "startMission") && callee.getDeclaringClass().getName().toString().equals("Ljavax/safetycritical/JopSystem")) 
+		{						
+				calleeContext = new ScjContext(calleeContext, 
+						caller.getMethod().getDeclaringClass().getName().toString(), ScjScopeType.MISSION);
+		} 
+					
 		return calleeContext;
 	}
-
+	
+	public boolean isSubclassOf(IMethod callee, IClass parent)
+	{
+		if (parent != null)			
+			return this.cha.isSubclassOf(callee.getDeclaringClass(), parent);
+		return false;		
+	}
+	
+	public boolean isFuncName(IMethod callee, String str)
+	{
+		return callee.getName().toString().equals(str);
+	}
+	
+	public String getUniquePMName()
+	{
+		return UUID.randomUUID().toString();
+	}
+	
 	public IntSet getRelevantParameters(CGNode caller, CallSiteReference site) {
 		return EmptyIntSet.instance;
 	}	

@@ -13,7 +13,6 @@
 package com.ibm.wala.ipa.callgraph.propagation;
 
 import analyser.util;
-
 import com.ibm.wala.classLoader.IClass;
 import com.ibm.wala.ipa.callgraph.CGNode;
 import com.ibm.wala.ipa.callgraph.propagation.SSAPropagationCallGraphBuilder;
@@ -39,7 +38,7 @@ public class MyConstraintVisitor extends ConstraintVisitor {
 		    	  
 		    	  if (receiver != null ) {
 		    		  if (!instruction.getCallSite().isStatic())
-		    			  getTargetForCall(node, instruction.getCallSite(), receiver, null);			    		
+		    			 getTargetForCall(node, instruction.getCallSite(), receiver, null);			    		
 		    	  } else {
 		    		  util.error("Could not resolve call target for: "+instruction.getDeclaredTarget().getName().toString()+"\n");
 		    	  }

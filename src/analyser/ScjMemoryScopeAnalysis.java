@@ -51,6 +51,7 @@ import com.ibm.wala.ipa.callgraph.propagation.cfa.DefaultPointerKeyFactory;
 import com.ibm.wala.ipa.callgraph.propagation.cfa.DefaultSSAInterpreter;
 import com.ibm.wala.ipa.callgraph.propagation.cfa.DelegatingSSAContextInterpreter;
 import com.ibm.wala.ipa.callgraph.propagation.cfa.ExceptionReturnValueKey;
+import com.ibm.wala.ipa.callgraph.propagation.cfa.ZeroXCFABuilder;
 import com.ibm.wala.ipa.callgraph.propagation.cfa.ZeroXInstanceKeys;
 import com.ibm.wala.ipa.cha.ClassHierarchy;
 import com.ibm.wala.ipa.cha.IClassHierarchy;
@@ -119,59 +120,57 @@ public class ScjMemoryScopeAnalysis {
 	public static void runAnalysis(PointerAnalysis pa, HeapGraph hg, HashSet<Problem> problems)
 	{
 		
-	    Iterator<InstanceKey> ikItr = pa.getInstanceKeys().iterator();
-	    IClassHierarchy cha = pa.getClassHierarchy();
-	    IClass throwableIClass = util.getIClass("Ljava/lang/Throwable", pa.getClassHierarchy());    	
+	    Iterator<InstanceKey> ikItr = pa.getInstanceKeys().iterator();	
+		int i = 0;
 		
 	    while( ikItr.hasNext() )
-	    {
+	    {	    	
 	    	InstanceKey ik = ikItr.next();
-	    	
-	    	Iterator<Object> pkIter = hg.getPredNodes(ik);
-	    	while (pkIter.hasNext()){
-	    		Object pred = pkIter.next(); 
-	    		if (getScjContext(ik) == null) {	
-	    			; 
-	    			if (ik instanceof NormalAllocationInNode){ //Remove errors from fakeRootMethod	    				
-	    				if (!((NormalAllocationInNode)ik).getNode().getMethod().getName().toString().equals("fakeRootMethod"))
-	    					util.error("Unexpected instancekey, expected fakeRootMethod");
-	    			} else if(ik instanceof ConcreteTypeKey && 
-	    					ik.getConcreteType().getName().toString().equals("Ljava/lang/String")){  
-	    				;	//TODO: We believe this is from strings in exceptions.
-	    			} else if (cha.isSubclassOf(ik.getConcreteType(), throwableIClass)) { //XXX: We currently do not handle exceptions
-	    				util.warnException();
-	    			} else { 
-	    				System.out.print(ik.getClass()+"\n");
-	    				util.warn(": Cannot resolve context on InstanceKey: "+ik.getClass()+ " "+ik.getConcreteType()+" "+pred);	    				
-	    			}
+    		Iterator<Object> pkIter = hg.getPredNodes(ik);
+    		
+    		if (getScjContext(ik) == null) {
+	    		i++;
+	    	} else 
+	    	{    		
+	    		
+	    		
+	    		while (pkIter.hasNext())
+	    		{
+	    			Object pk = pkIter.next();	    		
 	    			
-	    		} else {
-	    			if (!getScjContext(ik).less(getScjContext(pred)))
-	    			{
-	    				if (ik instanceof InstanceKeyWithNode) {
-	    					InstanceKeyWithNode ikn = (InstanceKeyWithNode) ik;
-	    					if (pred instanceof InstanceFieldKey){	    						
-	    						problems.add(new ProblemField(ikn, (InstanceFieldKey)pred));
-	    					} else if (pred instanceof StaticFieldKey) {
-	    						problems.add(new ProblemStaticField(ikn, (StaticFieldKey)pred));
-		    				} else if (pred instanceof ExceptionReturnValueKey) {	//XXX: We currently do not handle exceptions
-		    					util.warnException();
-	    					} else if (pred instanceof AbstractLocalPointerKey) {
-	    						problems.add(new ProblemPkIk(ikn, (AbstractLocalPointerKey)pred));
-		    				} else{
-		    					problems.add(new ProblemUnknown("Unknown mismatch is: "+ pred.getClass() + "scopes: "+getScjContext(pred)+ " result: " + getScjContext(ik)+
-		    							"\n   instance of class: "+ikn.getNode().getMethod().getDeclaringClass() + " in method: " + ikn.getNode().getMethod().getName()+ "\n"));
-		    				}
-	    				} else {
-	    					problems.add(new ProblemUnknown("Unknown mismatch is: "+ pred.getClass() + "scopes: "+getScjContext(pred)+ " result: " + getScjContext(ik)+"\n"));	    				
-	    				}
-	    			}
-	    		}
-	    	}
+	    			if (!getScjContext(ik).less(getScjContext(pk)))
+	    				report_problems(problems, ik, pk);	    			
+    			}
+    		}	    	
 	    }
+	    
+	    if (i != 10)
+	    	util.error("Unexpected number: "+i+" of InstanceKey objects with context == Null");
 	}
 
 	
+	private static void report_problems(HashSet<Problem> problems,
+			InstanceKey ik, Object pk) {
+		
+		if (ik instanceof InstanceKeyWithNode) {
+			InstanceKeyWithNode ikn = (InstanceKeyWithNode) ik;
+			if (pk instanceof InstanceFieldKey){
+				problems.add(new ProblemField(ikn, (InstanceFieldKey)pk));
+			} else if (pk instanceof StaticFieldKey) {
+				problems.add(new ProblemStaticField(ikn, (StaticFieldKey)pk));
+			} else if (pk instanceof ExceptionReturnValueKey) {	//XXX: We currently do not handle exceptions
+				util.warnException();
+			} else if (pk instanceof AbstractLocalPointerKey) {
+				problems.add(new ProblemPkIk(ikn, (AbstractLocalPointerKey)pk));
+			} else{
+				problems.add(new ProblemUnknown("Unknown mismatch is: "+ pk.getClass() + "scopes: "+getScjContext(pk)+ " result: " + getScjContext(ik)+
+						"\n   instance of class: "+ikn.getNode().getMethod().getDeclaringClass() + " in method: " + ikn.getNode().getMethod().getName()+ "\n"));
+			}
+		} else {	    					
+			problems.add(new ProblemUnknown("Unknown mismatch is: "+ pk.getClass() + "scopes: "+getScjContext(pk)+ " result: " + getScjContext(ik)+"\n"));	    				
+		}		
+	}
+
 	private static ScjContext getScjContext(Object o) 
 	{
 		  Context context = null;
@@ -183,7 +182,7 @@ public class ScjMemoryScopeAnalysis {
 		  } else if (o instanceof AbstractFieldPointerKey) {
 			  context = getScjContext(((AbstractFieldPointerKey) o).getInstanceKey());	//XXX: Make sure this is right!		  		  
 		  } else if (o instanceof StaticFieldKey) {             
-			  context = new ScjContext(null, "ImmortalMemory", ScjScopeType.IMMORTAL); 
+			  context = new ScjContext(null, "Ljavax/realtime/ImmortalMemory", ScjScopeType.IMMORTAL); 
 		  }
 		  
 		  if (context instanceof ScjContext)
@@ -192,18 +191,6 @@ public class ScjMemoryScopeAnalysis {
 		  return null;		  
 	}
 	
-/*	
- * Does not seem to be working yet. Should be tested with a recent version of WALA.
- * private static CallGraphBuilder MyRTABuilder(AnalysisOptions options, AnalysisCache cache, IClassHierarchy cha,
-		      AnalysisScope scope, ContextSelector customSelector) 
-	{
-		    Util.addDefaultSelectors(options, cha);
-		    Util.addDefaultBypassLogic(options, scope, Util.class.getClassLoader(), cha);
-
-		    return new BasicRTABuilder(cha, options, cache, customSelector, null);
-	}
-*/
-
 	private static CallGraphBuilder MyCFABuilder(AnalysisOptions options,
 			AnalysisCache cache, ClassHierarchy cha, AnalysisScope scope,
 			ContextSelector customSelector) {
@@ -214,56 +201,27 @@ public class ScjMemoryScopeAnalysis {
 
 		Util.addDefaultSelectors(options, cha);
 		Util.addDefaultBypassLogic(options, scope, Util.class.getClassLoader(),
-				cha);
-
-		
-		return MyZeroXCFABuilder.make(cha, options, cache, customSelector,
-			 ZeroXInstanceKeys.ALLOCATIONS | ZeroXInstanceKeys.SMUSH_MANY						
+				cha);		
+			
+		return new MyZeroXCFABuilder(cha, options, cache, customSelector, 
+			 ZeroXInstanceKeys.ALLOCATIONS | ZeroXInstanceKeys.SMUSH_MANY					
 						);
 
 	}
 
 }
 
-class MyZeroXCFABuilder extends SSAPropagationCallGraphBuilder {
 
-    protected MyZeroXCFABuilder(IClassHierarchy cha, AnalysisOptions options,
-                    AnalysisCache cache, ContextSelector appContextSelector,
-                    int instancePolicy) {
-            super(cha, options, cache, new DefaultPointerKeyFactory());
+class MyZeroXCFABuilder extends ZeroXCFABuilder {
 
-            ContextSelector def = new DefaultContextSelector(options, cha);
-            ContextSelector contextSelector = appContextSelector == null ? def
-                            : new DelegatingContextSelector(appContextSelector, def);
-            setContextSelector(contextSelector);
+	 public MyZeroXCFABuilder(IClassHierarchy cha, AnalysisOptions options,
+             AnalysisCache cache, ContextSelector appContextSelector,
+             int instancePolicy) {
+		 super(cha, options, cache, appContextSelector, null, instancePolicy);     
+	}
 
-            SSAContextInterpreter appContextInterpreter = null;
-
-            SSAContextInterpreter c = new DefaultSSAInterpreter(options, cache);
-            c = new DelegatingSSAContextInterpreter(ReflectionContextInterpreter
-                            .createReflectionContextInterpreter(cha, options,
-                                            getAnalysisCache()), c);
-            SSAContextInterpreter contextInterpreter = appContextInterpreter == null ? c
-                            : new DelegatingSSAContextInterpreter(appContextInterpreter, c);
-            setContextInterpreter(contextInterpreter);
-
-            //Create InstanceKeys based on allocation sites  
-            setInstanceKeys(new AllocationSiteInNodeFactory(options, cha));
-    }
-
-    public static SSAPropagationCallGraphBuilder make(IClassHierarchy cha,
-                    AnalysisOptions options, AnalysisCache cache,
-                    ContextSelector contextSelector, int instancePolicy) {
-
-            return new MyZeroXCFABuilder(cha, options, cache, contextSelector,
-                            instancePolicy);
-
-    }         
-
-    protected ConstraintVisitor makeVisitor(CGNode node) {
+    protected ConstraintVisitor makeVisitor(CGNode node) {			
             return new MyConstraintVisitor(this, node);
-    }
-
+    }      
 }
-
 

@@ -11,5 +11,5 @@
 package analyser;
 
 public enum ScjScopeType {
-	 IMMORTAL, MISSION, PEH, PM, UNKNOWN; 
+	 IMMORTAL, MISSION, PM, UNKNOWN; 
 	}
