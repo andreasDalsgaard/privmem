@@ -42,7 +42,9 @@ public class ProblemStaticField extends Problem {
 	@Override
 	protected boolean isPrimordial() {
 		
-		if ( this.ikn.getNode().getMethod().getDeclaringClass().getClassLoader().toString().equals("Primordial") && !this.showPrimordial )
+		if ( this.ikn.getNode().getMethod().getDeclaringClass().getClassLoader().toString().equals("Primordial") && 
+				!this.ikn.getNode().getMethod().getDeclaringClass().getName().toString().startsWith("Ljava/") && 
+				!this.showPrimordial )
 			return true;
 			
 		return false;
