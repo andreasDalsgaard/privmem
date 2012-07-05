@@ -66,6 +66,7 @@ public class ScjMemoryScopeAnalysis {
 	public static void main(String[] args) throws WalaException {
 		String primordial, main;
 		Properties p = CommandLine.parse(args);
+		int problemCounter = 0;
 		
 		if (p.getProperty("application") == null ) 		
 			util.print_usage();
@@ -87,10 +88,15 @@ public class ScjMemoryScopeAnalysis {
 			System.out.print("Problems:\n");
 			
 			while ( pItr.hasNext() )
-			{				
-				System.out.print(pItr.next()+"\n");
+			{	
+				String strNext = pItr.next().toString();								
+				if (!strNext.isEmpty()) {
+					System.out.print(strNext+"\n");
+					problemCounter++;
+				}
 			}
 			
+			System.out.print("Nr. of problems: "+problemCounter+"\n");
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
