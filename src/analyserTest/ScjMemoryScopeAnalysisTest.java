@@ -38,7 +38,7 @@ public class ScjMemoryScopeAnalysisTest {
 		try {
 			long t1, t2;
 			t1 = System.currentTimeMillis();
-			Set<Problem> problems = ScjMemoryScopeAnalysis.buildPointsTo(workingDir+"minepump.jar","minepump/Minepump", null);
+			Set<Problem> problems = ScjMemoryScopeAnalysis.buildPointsTo(workingDir+"minepump.jar","privmem/minepump/Minepump", null);
 			t2 = System.currentTimeMillis();
 			System.out.print("Analysis time: "+(t2-t1)+"\n"); 
 			printProblems(problems);
@@ -55,7 +55,7 @@ public class ScjMemoryScopeAnalysisTest {
 		try {
 			long t1, t2;
 			t1 = System.currentTimeMillis();			
-			Set<Problem> problems = ScjMemoryScopeAnalysis.buildPointsTo(workingDir+"minepumplog.jar","minepumplog/Minepump", null);
+			Set<Problem> problems = ScjMemoryScopeAnalysis.buildPointsTo(workingDir+"minepumplog.jar","privmem/minepumplog/Minepump", null);
 			t2 = System.currentTimeMillis();
 			System.out.print("Analysis time: "+(t2-t1)+"\n");
 			printProblems(problems);
@@ -68,11 +68,11 @@ public class ScjMemoryScopeAnalysisTest {
 	}
 	
 	@Test
-	public void testpmFFTexecuteInArea() {
+	public void testpmFFTcpResult() {
 		try {			
 			long t1, t2;
 			t1 = System.currentTimeMillis();
-			Set<Problem> problems = ScjMemoryScopeAnalysis.buildPointsTo(workingDir+"pmFFTexecuteInArea.jar","pmFFTexecuteInArea/Main", null);
+			Set<Problem> problems = ScjMemoryScopeAnalysis.buildPointsTo(workingDir+"pmFFTcpResult.jar","pmFFTcpResult/pmFFTcpResult", null);
 			t2 = System.currentTimeMillis();
 			System.out.print("Analysis time: "+(t2-t1)+"\n");
 			printProblems(problems);
@@ -106,7 +106,7 @@ public class ScjMemoryScopeAnalysisTest {
 		try {			
 			long t1, t2;
 			t1 = System.currentTimeMillis();
-			Set<Problem> problems = ScjMemoryScopeAnalysis.buildPointsTo(workingDir+"InOutParameter.jar","scopeuse/InOutParameter", null);
+			Set<Problem> problems = ScjMemoryScopeAnalysis.buildPointsTo(workingDir+"InOutParameter.jar","privmem/InOutParameter/InOutParameter", null);
 			t2 = System.currentTimeMillis();
 			System.out.print("Analysis time: "+(t2-t1)+"\n");
 			printProblems(problems);
@@ -117,24 +117,7 @@ public class ScjMemoryScopeAnalysisTest {
 
 		fail("Not yet implemented");
 	}
-	
-	@Test
-	public void testInOutParameterTest() {
-		try {			
-			long t1, t2;
-			t1 = System.currentTimeMillis();
-			Set<Problem> problems = ScjMemoryScopeAnalysis.buildPointsTo(workingDir+"InOutParameterTest.jar","scopeuse/InOutParameter", null);
-			t2 = System.currentTimeMillis();
-			System.out.print("Analysis time: "+(t2-t1)+"\n");
-			printProblems(problems);
-		} catch (Exception e) {
-			System.out.print("Error in unit test\n");
-			e.printStackTrace();
-		}
-
-		fail("Not yet implemented");
-	}
-	
+		
 	private void printProblems(Set<Problem> problems)
 	{
 		int problemCounter = 0;
