@@ -102,6 +102,9 @@ public class ScjContext implements Context {
 	}
 
 	public ScjScope getLastGetCurrentScope() {
+		if (this.lastGetCurrentMemoryScope == null)
+			return new ScjScope("Unknown", ScjScopeType.UNKNOWN);
+		
 		return lastGetCurrentMemoryScope;
 	}
 

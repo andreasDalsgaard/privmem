@@ -39,9 +39,9 @@ import com.ibm.wala.ipa.callgraph.propagation.AbstractLocalPointerKey;
 import com.ibm.wala.ipa.callgraph.propagation.AbstractTypeInNode;
 import com.ibm.wala.ipa.callgraph.propagation.AllocationSiteInNodeFactory;
 import com.ibm.wala.ipa.callgraph.propagation.ConcreteTypeKey;
+import com.ibm.wala.ipa.callgraph.propagation.FilteredPointerKey;
 import com.ibm.wala.ipa.callgraph.propagation.InstanceFieldKey;
 import com.ibm.wala.ipa.callgraph.propagation.InstanceKey;
-import com.ibm.wala.ipa.callgraph.propagation.MyConstraintVisitor;
 import com.ibm.wala.ipa.callgraph.propagation.NormalAllocationInNode;
 import com.ibm.wala.ipa.callgraph.propagation.PointerAnalysis;
 import com.ibm.wala.ipa.callgraph.propagation.SSAContextInterpreter;
@@ -111,7 +111,7 @@ public class ScjMemoryScopeAnalysis {
 	    options.setReflectionOptions(ReflectionOptions.NONE);
 	    
 	    ContextSelector scjContextSelector = new ScjContextSelector(cha);	    
-		com.ibm.wala.ipa.callgraph.CallGraphBuilder builder = MyCFABuilder(options, new AnalysisCache(), cha, scope, scjContextSelector);	    
+		com.ibm.wala.ipa.callgraph.CallGraphBuilder builder = ZeroXCFABuilder(options, new AnalysisCache(), cha, scope, scjContextSelector);	    
 	    CallGraph cg = builder.makeCallGraph(options,null);
 	    PointerAnalysis pointerAnalysis = builder.getPointerAnalysis(); 	   
 	    BasicHeapGraph bhg = new BasicHeapGraph(pointerAnalysis, cg); 
@@ -168,9 +168,15 @@ public class ScjMemoryScopeAnalysis {
 				util.warnException();
 			} else if (pk instanceof AbstractLocalPointerKey) {
 				problems.add(new ProblemPkIk(ikn, (AbstractLocalPointerKey)pk));
-			} else{
-				problems.add(new ProblemUnknown("Unknown mismatch is: "+ pk.getClass() + "scopes: "+getScjContext(pk)+ " result: " + getScjContext(ik)+
+			} else{		
+				if (pk instanceof FilteredPointerKey)
+				{
+					problems.add(new ProblemUnknown("Filtered mismatch is node: "+ pk.getClass() + "scopes: "+getScjContext(pk)+ " result: " + getScjContext(ik)+
 						"\n   instance of class: "+ikn.getNode().getMethod().getDeclaringClass() + " in method: " + ikn.getNode().getMethod().getName()+ "\n"));
+				} else {
+					problems.add(new ProblemUnknown("Unknown mismatch is node: "+ pk.getClass() + "scopes: "+getScjContext(pk)+ " result: " + getScjContext(ik)+
+							"\n   instance of class: "+ikn.getNode().getMethod().getDeclaringClass() + " in method: " + ikn.getNode().getMethod().getName()+ "\n"));
+				}
 			}
 		} else {	    					
 			problems.add(new ProblemUnknown("Unknown mismatch is: "+ pk.getClass() + "scopes: "+getScjContext(pk)+ " result: " + getScjContext(ik)+"\n"));	    				
@@ -185,8 +191,8 @@ public class ScjMemoryScopeAnalysis {
 			  context = ((AbstractTypeInNode) o).getNode().getContext();			  
 		  } else if(o instanceof AbstractLocalPointerKey) {
 			  context = ((AbstractLocalPointerKey) o).getNode().getContext();			  
-		  } else if (o instanceof AbstractFieldPointerKey) {
-			  context = getScjContext(((AbstractFieldPointerKey) o).getInstanceKey());	//XXX: Make sure this is right!		  		  
+		  } else if (o instanceof AbstractFieldPointerKey) {			  
+			  context = getScjContext(((AbstractFieldPointerKey) o).getInstanceKey());		  		  
 		  } else if (o instanceof StaticFieldKey) {             
 			  context = new ScjContext(null, "Ljavax/realtime/ImmortalMemory", ScjScopeType.IMMORTAL); 
 		  }
@@ -197,7 +203,7 @@ public class ScjMemoryScopeAnalysis {
 		  return null;		  
 	}
 	
-	private static CallGraphBuilder MyCFABuilder(AnalysisOptions options,
+	private static CallGraphBuilder ZeroXCFABuilder(AnalysisOptions options,
 			AnalysisCache cache, ClassHierarchy cha, AnalysisScope scope,
 			ContextSelector customSelector) {
 
@@ -209,8 +215,8 @@ public class ScjMemoryScopeAnalysis {
 		Util.addDefaultBypassLogic(options, scope, Util.class.getClassLoader(),
 				cha);		
 			
-		return new MyZeroXCFABuilder(cha, options, cache, customSelector, 
-			 ZeroXInstanceKeys.ALLOCATIONS | ZeroXInstanceKeys.SMUSH_MANY					
+		return new ZeroXCFABuilder(cha, options, cache, customSelector, 
+			 null, ZeroXInstanceKeys.ALLOCATIONS | ZeroXInstanceKeys.SMUSH_MANY					
 						);
 
 	}
@@ -218,16 +224,5 @@ public class ScjMemoryScopeAnalysis {
 }
 
 
-class MyZeroXCFABuilder extends ZeroXCFABuilder {
 
-	 public MyZeroXCFABuilder(IClassHierarchy cha, AnalysisOptions options,
-             AnalysisCache cache, ContextSelector appContextSelector,
-             int instancePolicy) {
-		 super(cha, options, cache, appContextSelector, null, instancePolicy);     
-	}
-
-    protected ConstraintVisitor makeVisitor(CGNode node) {			
-            return new MyConstraintVisitor(this, node);
-    }      
-}
 

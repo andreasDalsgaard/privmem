@@ -26,7 +26,7 @@ import java.util.UUID;
 public class ScjContextSelector implements ContextSelector {
 		
 	private IClass missionIClass = null;
-	private IClass PEHIClass = null;	
+	private IClass MEHIClass = null;	
 	int counter = 0;	
 	private ClassHierarchy cha;
 	private IClass ManagedMemoryIClass;
@@ -40,7 +40,7 @@ public class ScjContextSelector implements ContextSelector {
 		if (this.missionIClass == null)
 			throw new IllegalArgumentException("No mission class in ClassHierarchy");
 		
-		this.PEHIClass = util.getIClass("Ljavax/safetycritical/PeriodicEventHandler", cha);		
+		this.MEHIClass = util.getIClass("Ljavax/safetycritical/ManagedEventHandler", cha);		
 		this.ManagedMemoryIClass  = util.getIClass("Ljavax/safetycritical/ManagedMemory", cha);		
 		this.MemoryAreaIClass  = util.getIClass("Ljavax/realtime/MemoryArea", cha);		
 	}
@@ -57,8 +57,8 @@ public class ScjContextSelector implements ContextSelector {
 		}		
 		
 		calleeContext = (ScjContext) caller.getContext();
-		
-		if (isSubclassOf(callee, this.PEHIClass) && 
+				
+		if (isSubclassOf(callee, this.MEHIClass) && 
 				isFuncName(callee, "handleAsyncEvent")) 
 		{
 			calleeContext = new ScjContext(calleeContext, callee.getDeclaringClass().getName().toString(), ScjScopeType.PM);
@@ -72,11 +72,8 @@ public class ScjContextSelector implements ContextSelector {
 		} else if(isSubclassOf(callee,this.MemoryAreaIClass)) 
 		{					
 			if (isFuncName(callee, "executeInArea"))
-			{
-				if (calleeContext.getLastGetCurrentScope() != null)
-					calleeContext = new ScjContext(calleeContext, calleeContext.getLastGetCurrentScope().getName().toString(), calleeContext.getLastGetCurrentScope().getScopeType()); 
-				else
-					calleeContext = new ScjContext(calleeContext, callee.getDeclaringClass().getName().toString(), ScjScopeType.UNKNOWN);				
+			{				
+				calleeContext = new ScjContext(calleeContext, calleeContext.getLastGetCurrentScope().getName().toString(), calleeContext.getLastGetCurrentScope().getScopeType()); 
 			} else if (isFuncName(callee, "getMemoryArea"))
 			{
 					((ScjContext)caller.getContext()).setLastGetCurrentScope(calleeContext.getStackTop());
