@@ -16,10 +16,8 @@ public class ProblemUnknown extends Problem {
 	ScjContext iContext;
 	ScjContext pContext;
 	
-	public ProblemUnknown(String description) {//, ScjContext iContext, ScjContext pContext) {		
+	public ProblemUnknown(String description) {		
 		this.description = description;
-		//this.iContext = iContext;
-		//this.pContext= pContext;
 	}
 	
 	

@@ -20,11 +20,9 @@ public class ProblemStaticField extends Problem {
 	ScjContext iContext;
 	ScjContext pContext;
 	
-	public ProblemStaticField(InstanceKeyWithNode ikn, StaticFieldKey pk) {//, ScjContext iContext, ScjContext pContext) {		
+	public ProblemStaticField(InstanceKeyWithNode ikn, StaticFieldKey pk) {		
 		this.pk = pk;
 		this.ikn = ikn;
-		//this.iContext = iContext;
-		//this.pContext= pContext;
 	}
 	
 	

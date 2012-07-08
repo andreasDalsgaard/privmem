@@ -20,11 +20,9 @@ public class ProblemPkIk extends Problem {
 	ScjContext iContext;
 	ScjContext pContext;
 	
-	public ProblemPkIk(InstanceKeyWithNode ikn, AbstractLocalPointerKey pk) {//, ScjContext iContext, ScjContext pContext) {		
+	public ProblemPkIk(InstanceKeyWithNode ikn, AbstractLocalPointerKey pk) {		
 		this.pk = pk;
 		this.ikn = ikn;
-		//this.iContext = iContext;
-		//this.pContext= pContext;
 	}
 	
 	

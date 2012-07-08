@@ -20,11 +20,9 @@ public class ProblemField extends Problem {
 	ScjContext iContext;
 	ScjContext pContext;
 	
-	public ProblemField(InstanceKeyWithNode ikn, InstanceFieldKey pk) {//, ScjContext iContext, ScjContext pContext) {		
+	public ProblemField(InstanceKeyWithNode ikn, InstanceFieldKey pk) {		
 		this.pk = pk;
-		this.ikn = ikn;
-		//this.iContext = iContext;
-		//this.pContext= pContext;
+		this.ikn = ikn;		
 	}
 
 	public String toString()
