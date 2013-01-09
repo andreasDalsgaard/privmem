@@ -150,7 +150,7 @@ public class ScjMemoryScopeAnalysis {
     		}	    	
 	    }
 	    
-	    if (i != 10)
+	    if (i > 10)
 	    	util.error("Unexpected number: "+i+" of InstanceKey objects with context == Null");
 	}
 

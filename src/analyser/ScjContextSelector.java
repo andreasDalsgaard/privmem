@@ -26,7 +26,7 @@ import java.util.UUID;
 public class ScjContextSelector implements ContextSelector {
 		
 	private IClass missionIClass = null;
-	private IClass MEHIClass = null;	
+	private IClass AEHIClass = null;	
 	int counter = 0;	
 	private ClassHierarchy cha;
 	private IClass ManagedMemoryIClass;
@@ -40,7 +40,7 @@ public class ScjContextSelector implements ContextSelector {
 		if (this.missionIClass == null)
 			throw new IllegalArgumentException("No mission class in ClassHierarchy");
 		
-		this.MEHIClass = util.getIClass("Ljavax/safetycritical/ManagedEventHandler", cha);		
+		this.AEHIClass = util.getIClass("Ljavax/realtime/AbstractAsyncEventHandler", cha);
 		this.ManagedMemoryIClass  = util.getIClass("Ljavax/safetycritical/ManagedMemory", cha);		
 		this.MemoryAreaIClass  = util.getIClass("Ljavax/realtime/MemoryArea", cha);		
 	}
@@ -58,7 +58,7 @@ public class ScjContextSelector implements ContextSelector {
 		
 		calleeContext = (ScjContext) caller.getContext();
 				
-		if (isSubclassOf(callee, this.MEHIClass) && 
+		if (isSubclassOf(callee, this.AEHIClass) && 
 				isFuncName(callee, "handleAsyncEvent")) 
 		{
 			calleeContext = new ScjContext(calleeContext, callee.getDeclaringClass().getName().toString(), ScjScopeType.PM);
