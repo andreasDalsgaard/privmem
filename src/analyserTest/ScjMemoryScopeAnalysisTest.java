@@ -30,7 +30,7 @@ import com.ibm.wala.util.io.CommandLine;
 public class ScjMemoryScopeAnalysisTest {
 
 	ScjMemoryScopeAnalysis memAnalysis;
-	String workingDir = System.getProperty("user.dir")+"/../../artikler/privmem/experiments/";
+	String workingDir = System.getProperty("user.dir")+"/../../artikler/scjmemana/experiments/";
 	
 	
 	@Test
@@ -107,6 +107,73 @@ public class ScjMemoryScopeAnalysisTest {
 			long t1, t2;
 			t1 = System.currentTimeMillis();
 			Set<Problem> problems = ScjMemoryScopeAnalysis.buildPointsTo(workingDir+"InOutParameter.jar","privmem/InOutParameter/InOutParameter", null);
+			t2 = System.currentTimeMillis();
+			System.out.print("Analysis time: "+(t2-t1)+"\n");
+			printProblems(problems);
+		} catch (Exception e) {
+			System.out.print("Error in unit test\n");
+			e.printStackTrace();
+		}
+
+		fail("Not yet implemented");
+	}
+	
+	@Test
+	public void testSorter() {
+		try {			
+			long t1, t2;
+			t1 = System.currentTimeMillis();
+			Set<Problem> problems = ScjMemoryScopeAnalysis.buildPointsTo(workingDir+"Sorter.jar","privmem/sorter/SorterApp", null);
+			t2 = System.currentTimeMillis();
+			System.out.print("Analysis time: "+(t2-t1)+"\n");
+			printProblems(problems);
+		} catch (Exception e) {
+			System.out.print("Error in unit test\n");
+			e.printStackTrace();
+		}
+
+		fail("Not yet implemented");
+	}
+
+	@Test
+	public void testmd5scj() {
+		try {			
+			long t1, t2;
+			t1 = System.currentTimeMillis();
+			Set<Problem> problems = ScjMemoryScopeAnalysis.buildPointsTo(workingDir+"md5scj.jar","privmem/md5scj/Level0App", null);
+			t2 = System.currentTimeMillis();
+			System.out.print("Analysis time: "+(t2-t1)+"\n");
+			printProblems(problems);
+		} catch (Exception e) {
+			System.out.print("Error in unit test\n");
+			e.printStackTrace();
+		}
+
+		fail("Not yet implemented");
+	}
+
+	@Test
+	public void testthruster() {
+		try {			
+			long t1, t2;
+			t1 = System.currentTimeMillis();
+			Set<Problem> problems = ScjMemoryScopeAnalysis.buildPointsTo(workingDir+"Thruster.jar","privmem/thruster/engine/ThrusterControlSystem", null);
+			t2 = System.currentTimeMillis();
+			System.out.print("Analysis time: "+(t2-t1)+"\n");
+			printProblems(problems);
+		} catch (Exception e) {
+			System.out.print("Error in unit test\n");
+			e.printStackTrace();
+		}
+
+		fail("Not yet implemented");
+	}
+	@Test
+	public void testPacemakerScj() {
+		try {			
+			long t1, t2;
+			t1 = System.currentTimeMillis();
+			Set<Problem> problems = ScjMemoryScopeAnalysis.buildPointsTo(workingDir+"pacemaker-scj.jar","privmem/pacemakerScj/main", null);
 			t2 = System.currentTimeMillis();
 			System.out.print("Analysis time: "+(t2-t1)+"\n");
 			printProblems(problems);

@@ -20,6 +20,10 @@ import com.ibm.wala.ipa.callgraph.propagation.InstanceKey;
 import com.ibm.wala.ipa.cha.ClassHierarchy;
 import com.ibm.wala.util.intset.EmptyIntSet;
 import com.ibm.wala.util.intset.IntSet;
+
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.UUID;
 
 
@@ -30,7 +34,20 @@ public class ScjContextSelector implements ContextSelector {
 	int counter = 0;	
 	private ClassHierarchy cha;
 	private IClass ManagedMemoryIClass;
-	private IClass MemoryAreaIClass;	
+	private IClass MemoryAreaIClass;
+	public HashMap<IClass, ScjScopeStack> classScopeMap = new HashMap<IClass, ScjScopeStack>();
+	public HashSet<ScjScopeStack> scopeStacks = new HashSet<ScjScopeStack>();
+	public HashMap<IMethod, ScjScopeStack> methodScopeMap = new HashMap<IMethod, ScjScopeStack>();
+	public int count;		
+	private IClass immortalIClass;
+	private IClass safeletIClass;
+	private IClass PEHIClass;
+	private IClass APEHIClass;
+	private IClass CyclicExecutiveIClass;
+	private ScjContext immortal;
+	private boolean CyclicExecutiveUsed;
+	
+	
 	
 	public ScjContextSelector(ClassHierarchy cha) 
 	{
@@ -43,6 +60,12 @@ public class ScjContextSelector implements ContextSelector {
 		this.AEHIClass = util.getIClass("Ljavax/realtime/AbstractAsyncEventHandler", cha);
 		this.ManagedMemoryIClass  = util.getIClass("Ljavax/safetycritical/ManagedMemory", cha);		
 		this.MemoryAreaIClass  = util.getIClass("Ljavax/realtime/MemoryArea", cha);		
+		this.immortalIClass = util.getIClass("Ljavax/realtime/ImmortalMemory", cha);
+		this.safeletIClass = util.getIClass("Ljavax/safetycritical/Safelet", cha);		
+		this.PEHIClass = util.getIClass("Ljavax/safetycritical/PeriodicEventHandler", cha);
+		this.APEHIClass = util.getIClass("Ljavax/safetycritical/AperiodicEventHandler", cha);
+		this.CyclicExecutiveIClass = util.getIClass("Ljavax/safetycritical/CyclicExecutive", cha);
+		this.immortal = new ScjContext(null, "Ljavax/realtime/ImmortalMemory", ScjScopeType.IMMORTAL);
 	}
 	
 	public Context getCalleeTarget(CGNode caller, CallSiteReference site,
@@ -53,7 +76,7 @@ public class ScjContextSelector implements ContextSelector {
 		// Handles the first nodes that is called from the synthetic fakeRoot
 		if (!(caller.getContext() instanceof ScjContext))		
 		{			
-			return new ScjContext(null, "Ljavax/realtime/ImmortalMemory", ScjScopeType.IMMORTAL);
+			return immortal; 
 		}		
 		
 		calleeContext = (ScjContext) caller.getContext();
@@ -83,8 +106,14 @@ public class ScjContextSelector implements ContextSelector {
 				calleeContext = new ScjContext(calleeContext, 
 						caller.getMethod().getDeclaringClass().getName().toString(), ScjScopeType.MISSION);
 		} 
-					
+
+		this.updateClassScopeMapping(callee,calleeContext.scopeStack);		
+		this.updateMethodScope(callee, calleeContext.scopeStack);
 		return calleeContext;
+	}
+
+	public IntSet getRelevantParameters(CGNode caller, CallSiteReference site) {
+		return EmptyIntSet.instance;
 	}
 	
 	public boolean isSubclassOf(IMethod callee, IClass parent)
@@ -104,7 +133,74 @@ public class ScjContextSelector implements ContextSelector {
 		return UUID.randomUUID().toString();
 	}
 	
-	public IntSet getRelevantParameters(CGNode caller, CallSiteReference site) {
-		return EmptyIntSet.instance;
-	}	
+	private void updateClassScopeMapping(IMethod callee, ScjScopeStack scopeStack)
+	{
+		if (isSubclassOf(callee, this.CyclicExecutiveIClass))
+		{
+			updateClassScope(callee.getDeclaringClass(),immortal.scopeStack);			
+			this.scopeStacks.add(immortal.scopeStack);
+			this.CyclicExecutiveUsed = true;
+		} else if (isSubclassOf(callee, this.immortalIClass)) {			
+			updateClassScope(callee.getDeclaringClass(), scopeStack);
+			this.scopeStacks.add(scopeStack);
+		} else if(isSubclassOf(callee, this.safeletIClass)) {		
+			updateClassScope(callee.getDeclaringClass(), scopeStack);
+			this.scopeStacks.add(scopeStack);
+		} else if(isSubclassOf(callee, this.missionIClass)) { 		//Mission 		
+			updateClassScope(callee.getDeclaringClass(), scopeStack);
+			this.scopeStacks.add(scopeStack);
+		} else if(isSubclassOf(callee, this.PEHIClass) || isSubclassOf(callee, this.APEHIClass)) {		//EventHandlers
+			if (this.CyclicExecutiveUsed) //Heuristic to human-like annotations if cyclicexcecutive is used put eventhandlers in mission
+			{
+				ScjScopeStack ss = new ScjScopeStack();
+				ss.add(scopeStack.get(0));
+				ss.add(scopeStack.get(1));
+				updateClassScope(callee.getDeclaringClass(), ss);			
+				this.scopeStacks.add(ss);
+			} else {
+				updateClassScope(callee.getDeclaringClass(), scopeStack);			
+				this.scopeStacks.add(scopeStack);
+			}
+		}
+	}
+	
+	private void updateClassScope(IClass type, ScjScopeStack ss1)
+	{
+		ScjScope scjScope = ss1.getLast();
+		
+		if (this.classScopeMap.containsKey(type))
+		{
+			ScjScopeStack ss2 = this.classScopeMap.get(type);			
+			ss2.add(scjScope);
+			this.classScopeMap.put(type, ss2);	
+		} else {
+			ScjScopeStack scopestack = new ScjScopeStack();	
+			scopestack.add(ss1.getLast());
+			this.classScopeMap.put(type, scopestack);
+		}
+	}
+	
+	private void updateMethodScope(IMethod method, ScjScopeStack ss1)
+	{
+		ScjScope scjScope = ss1.getLast();
+				
+		if (this.methodScopeMap.containsKey(method))
+		{
+			ScjScopeStack ss2 = this.methodScopeMap.get(method);			
+			
+			if (ss2.size() != 1 || ss2.getLast() == scjScope)
+			{ 
+				this.methodScopeMap.remove(method);
+				ss2.add(scjScope);
+				this.methodScopeMap.put(method, ss2);								
+			}
+			
+		} else {
+			ScjScopeStack scopestack = new ScjScopeStack();	
+			scopestack.add(ss1.getLast());
+			this.methodScopeMap.put(method, scopestack);
+		}
+	}
+	
+	
 }

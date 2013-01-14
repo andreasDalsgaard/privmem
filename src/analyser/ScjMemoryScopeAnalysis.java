@@ -11,8 +11,10 @@
 package analyser;
 
 import java.io.IOException;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Set;
 
@@ -21,6 +23,7 @@ import com.ibm.wala.analysis.pointers.HeapGraph;
 import com.ibm.wala.analysis.reflection.InstanceKeyWithNode;
 import com.ibm.wala.analysis.reflection.ReflectionContextInterpreter;
 import com.ibm.wala.classLoader.IClass;
+import com.ibm.wala.classLoader.IMethod;
 import com.ibm.wala.ipa.callgraph.AnalysisCache;
 import com.ibm.wala.ipa.callgraph.AnalysisOptions;
 import com.ibm.wala.ipa.callgraph.AnalysisOptions.ReflectionOptions;
@@ -42,8 +45,10 @@ import com.ibm.wala.ipa.callgraph.propagation.ConcreteTypeKey;
 import com.ibm.wala.ipa.callgraph.propagation.FilteredPointerKey;
 import com.ibm.wala.ipa.callgraph.propagation.InstanceFieldKey;
 import com.ibm.wala.ipa.callgraph.propagation.InstanceKey;
+import com.ibm.wala.ipa.callgraph.propagation.LocalPointerKey;
 import com.ibm.wala.ipa.callgraph.propagation.NormalAllocationInNode;
 import com.ibm.wala.ipa.callgraph.propagation.PointerAnalysis;
+import com.ibm.wala.ipa.callgraph.propagation.PointerKey;
 import com.ibm.wala.ipa.callgraph.propagation.SSAContextInterpreter;
 import com.ibm.wala.ipa.callgraph.propagation.SSAPropagationCallGraphBuilder;
 import com.ibm.wala.ipa.callgraph.propagation.StaticFieldKey;
@@ -116,14 +121,62 @@ public class ScjMemoryScopeAnalysis {
 	    PointerAnalysis pointerAnalysis = builder.getPointerAnalysis(); 	   
 	    BasicHeapGraph bhg = new BasicHeapGraph(pointerAnalysis, cg); 
 	    HashSet<Problem> problems = new HashSet<Problem>();    
+	    HashSet<MemoryAnnotation> annotations = new HashSet<MemoryAnnotation>();
 	    
-	    runAnalysis(bhg.getPointerAnalysis(), (HeapGraph)bhg, problems);	
+	    runAnalysis(bhg.getPointerAnalysis(), (HeapGraph)bhg, problems, annotations);	
+	    	    
+	    /* Generate annotations */
 	    
+	    //RunsIn Annotations
+	    Iterator<Entry<IMethod, ScjScopeStack>> pItr = ((ScjContextSelector)scjContextSelector).methodScopeMap.entrySet().iterator();		
+		
+		while ( pItr.hasNext() )
+		{	
+			Entry<IMethod, ScjScopeStack> entry = pItr.next();
+			String className = entry.getKey().getDeclaringClass().getName().toString();
+			if( entry.getValue().size() == 1) 
+					annotations.add(new MemoryAnnotationRunsIn(entry.getValue().getLast(), entry.getKey()));
+			else
+					annotations.add(new MemoryAnnotationRunsIn(null, entry.getKey(), entry.getValue()));
+		}
+		
+		Iterator<Entry<IClass, ScjScopeStack>> pItr2 = ((ScjContextSelector)scjContextSelector).classScopeMap.entrySet().iterator();	
+		
+		//Scope - Class Annotations
+		while ( pItr2.hasNext() )
+		{	
+			Entry<IClass, ScjScopeStack> entry = pItr2.next();
+			annotations.add(new MemoryAnnotationScope(entry.getValue().getLast(),entry.getKey(),null));
+		}
+
+		//DefineScope Annotations
+		Iterator<ScjScopeStack> pItr3 = ((ScjContextSelector)scjContextSelector).scopeStacks.iterator();	
+		
+		while ( pItr3.hasNext() )
+		{	
+			ScjScopeStack ss = pItr3.next();					
+			annotations.add(new MemoryAnnotationDefineScope(ss));			
+		}
+	    		
+	    //Print Annotations
+		MemoryAnnotation meman;
+		String className;
+		
+		for (java.util.Iterator<MemoryAnnotation> i = annotations.iterator(); i.hasNext(); ) {
+			meman = i.next();
+			className = meman.getClassName();
+			
+			if ( !className.startsWith("Ljava") && !className.startsWith("Lcom") && !className.startsWith("Ljoprt") ) {				
+				System.out.print(meman.toString());
+			}			
+		}
+		
+		
 		return problems; 
   }	
 	
 	
-	public static void runAnalysis(PointerAnalysis pa, HeapGraph hg, HashSet<Problem> problems)
+	public static void runAnalysis(PointerAnalysis pa, HeapGraph hg, HashSet<Problem> problems, HashSet<MemoryAnnotation> annotations)
 	{
 		
 	    Iterator<InstanceKey> ikItr = pa.getInstanceKeys().iterator();	
@@ -152,7 +205,27 @@ public class ScjMemoryScopeAnalysis {
 	    
 	    if (i > 10)
 	    	util.error("Unexpected number: "+i+" of InstanceKey objects with context == Null");
-	}
+	    
+	    //Scope - Field Annotations
+	    Iterator<PointerKey> pointKIter = pa.getPointerKeys().iterator();
+	    ikItr = pa.getInstanceKeys().iterator();	
+	    ScjContext context;
+	    PointerKey pk;
+	    
+	    while (pointKIter.hasNext())
+		{
+	    	pk = pointKIter.next();	  
+			context = getScjContext(pk);
+	    	if (context != null)
+	    	{
+	    		if (pk instanceof InstanceFieldKey)
+	    		{
+	    			InstanceFieldKey ifk = (InstanceFieldKey) pk;	    			
+	    			annotations.add(new MemoryAnnotationScope(context.getStackTop(), ifk.getField().getDeclaringClass(), ifk.getField().getName().toString()));
+	    		}
+	    	}
+	    }
+}
 
 	
 	private static void report_problems(HashSet<Problem> problems,
