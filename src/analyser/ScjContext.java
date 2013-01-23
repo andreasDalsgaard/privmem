@@ -22,7 +22,6 @@ import analyser.ScjScope;
 public class ScjContext implements Context {
 
 	ScjScopeStack scopeStack;
-	private ScjScope lastGetCurrentMemoryScope = null;
 	
 	public ScjContext(ScjContext parent, String scopeName, ScjScopeType type) {
 
@@ -31,10 +30,7 @@ public class ScjContext implements Context {
   		    	
 	    if (parent == null && type != ScjScopeType.IMMORTAL)
 	    	throw new IllegalArgumentException("null parent");
-	    
-	    if (parent != null)
-	    	this.setLastGetCurrentScope(parent.getLastGetCurrentScope());
-	    
+	        
 	    if (type == ScjScopeType.IMMORTAL)
 	    {
 	    	this.scopeStack = new ScjScopeStack();	    	
@@ -50,8 +46,12 @@ public class ScjContext implements Context {
 	/*** Copy constructor ***/
 	public ScjContext(ScjContext parent) 
 	{
-		this.scopeStack = parent.getScopeStack();
-		this.setLastGetCurrentScope(parent.getLastGetCurrentScope());
+		this.scopeStack = parent.getScopeStack();	
+	}
+	
+	public ScjContext(ScjScopeStack ss) 
+	{
+		this.scopeStack = ss;	
 	}
 	
 	private ScjScopeStack getScopeStack()
@@ -79,7 +79,7 @@ public class ScjContext implements Context {
 
 	@Override
 	public String toString() {
-	    return this.getLastGetCurrentScope()+" "+scopeStack.toString();
+	    return scopeStack.toString();
 	}
 	
 	public ContextItem get(ContextKey name) {
@@ -101,18 +101,9 @@ public class ScjContext implements Context {
 		return this.scopeStack.getLast(); 
 	}
 
-	public ScjScope getLastGetCurrentScope() {
-		if (this.lastGetCurrentMemoryScope == null)
-			return new ScjScope("Unknown", ScjScopeType.UNKNOWN);
-		
-		return lastGetCurrentMemoryScope;
-	}
-
-	public void setLastGetCurrentScope(ScjScope lastgetscope) {
-		if (this.lastGetCurrentMemoryScope == null || lastgetscope == null)
-			this.lastGetCurrentMemoryScope = lastgetscope;
-		else
-			this.lastGetCurrentMemoryScope = new ScjScope(this.lastGetCurrentMemoryScope.getName()+" "+lastgetscope.getName().toString(), ScjScopeType.UNKNOWN);
-	}
-	
+	public ScjScopeStack getOuterStack() {		
+		ScjScopeStack ss = getScopeStack();
+		ss.removeLast();
+		return ss;
+	}	
 }

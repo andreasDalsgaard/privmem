@@ -46,6 +46,7 @@ public class ScjContextSelector implements ContextSelector {
 	private IClass CyclicExecutiveIClass;
 	private ScjContext immortal;
 	private boolean CyclicExecutiveUsed;
+	private IClass MissionSequencer;
 	
 	
 	
@@ -65,6 +66,7 @@ public class ScjContextSelector implements ContextSelector {
 		this.PEHIClass = util.getIClass("Ljavax/safetycritical/PeriodicEventHandler", cha);
 		this.APEHIClass = util.getIClass("Ljavax/safetycritical/AperiodicEventHandler", cha);
 		this.CyclicExecutiveIClass = util.getIClass("Ljavax/safetycritical/CyclicExecutive", cha);
+		this.MissionSequencer = util.getIClass("Ljavax/safetycritical/MissionSequencer", cha);
 		this.immortal = new ScjContext(null, "Ljavax/realtime/ImmortalMemory", ScjScopeType.IMMORTAL);
 	}
 	
@@ -85,28 +87,36 @@ public class ScjContextSelector implements ContextSelector {
 				isFuncName(callee, "handleAsyncEvent")) 
 		{
 			calleeContext = new ScjContext(calleeContext, callee.getDeclaringClass().getName().toString(), ScjScopeType.PM);
-		} else if (isSubclassOf(callee,this.ManagedMemoryIClass)) 
+		} else if (this.isImplemented(callee, this.safeletIClass) && isFuncName(callee, "initializeApplication")) {			
+			calleeContext = this.immortal; 
+		}else if (isSubclassOf(callee,this.ManagedMemoryIClass)) 
 		{			
-			if (isFuncName(callee, "enterPrivateMemory")) {
+			if (isFuncName(callee, "enterPrivateMemory")) {				
 				calleeContext = new ScjContext(calleeContext, getUniquePMName(), ScjScopeType.PM);
+			} else if (isFuncName(callee, "executeInOuterArea")) {
+				System.out.println("executeInOuterArea");
+				calleeContext = new ScjContext(calleeContext.getOuterStack());
+			} else if (isFuncName(callee, "executeInAreaOf")) {
+				util.error("Not supported by the analysis");
 			} else if (isFuncName(callee, "getCurrentManagedMemory")) {
-				((ScjContext)caller.getContext()).setLastGetCurrentScope(calleeContext.getStackTop());
-			}
-		} else if(isSubclassOf(callee,this.MemoryAreaIClass)) 
-		{					
-			if (isFuncName(callee, "executeInArea"))
-			{				
-				calleeContext = new ScjContext(calleeContext, calleeContext.getLastGetCurrentScope().getName().toString(), calleeContext.getLastGetCurrentScope().getScopeType()); 
-			} else if (isFuncName(callee, "getMemoryArea"))
-			{
-					((ScjContext)caller.getContext()).setLastGetCurrentScope(calleeContext.getStackTop());
-			}
+				util.error("Not supported by new SCJ revisions");
+			} 	
 		} else if (isFuncName(callee, "startMission") && callee.getDeclaringClass().getName().toString().equals("Ljavax/safetycritical/JopSystem")) 
-		{						
+		{			
 				calleeContext = new ScjContext(calleeContext, 
 						caller.getMethod().getDeclaringClass().getName().toString(), ScjScopeType.MISSION);
-		} 
-
+		} else if(isFuncName(callee, "getSequencer") && this.isImplemented(callee, this.safeletIClass))
+		{
+			calleeContext = this.immortal;
+		}
+		 
+		if( ScjMemoryScopeAnalysis.analyseWithoutJRE == true && isFuncName(callee, "initialize") && isSubclassOf(callee, this.missionIClass))  
+		{							
+			calleeContext = new ScjContext(calleeContext, 
+				caller.getMethod().getDeclaringClass().getName().toString(), ScjScopeType.MISSION);			
+		}
+		
+		this.scopeStacks.add(calleeContext.scopeStack);
 		this.updateClassScopeMapping(callee,calleeContext.scopeStack);		
 		this.updateMethodScope(callee, calleeContext.scopeStack);
 		return calleeContext;
@@ -123,6 +133,14 @@ public class ScjContextSelector implements ContextSelector {
 		return false;		
 	}
 	
+	public boolean isImplemented(IMethod callee, IClass parent)
+	{
+		if (parent != null)					
+			return this.cha.implementsInterface(callee.getDeclaringClass(), parent);
+		return false;		
+	}
+	
+	
 	public boolean isFuncName(IMethod callee, String str)
 	{
 		return callee.getName().toString().equals(str);
@@ -138,29 +156,16 @@ public class ScjContextSelector implements ContextSelector {
 		if (isSubclassOf(callee, this.CyclicExecutiveIClass))
 		{
 			updateClassScope(callee.getDeclaringClass(),immortal.scopeStack);			
-			this.scopeStacks.add(immortal.scopeStack);
-			this.CyclicExecutiveUsed = true;
-		} else if (isSubclassOf(callee, this.immortalIClass)) {			
-			updateClassScope(callee.getDeclaringClass(), scopeStack);
-			this.scopeStacks.add(scopeStack);
-		} else if(isSubclassOf(callee, this.safeletIClass)) {		
-			updateClassScope(callee.getDeclaringClass(), scopeStack);
-			this.scopeStacks.add(scopeStack);
+			this.CyclicExecutiveUsed = true;		
+		} else if(isImplemented(callee, this.safeletIClass)) {		
+			updateClassScope(callee.getDeclaringClass(),immortal.scopeStack);
 		} else if(isSubclassOf(callee, this.missionIClass)) { 		//Mission 		
 			updateClassScope(callee.getDeclaringClass(), scopeStack);
-			this.scopeStacks.add(scopeStack);
 		} else if(isSubclassOf(callee, this.PEHIClass) || isSubclassOf(callee, this.APEHIClass)) {		//EventHandlers
-			if (this.CyclicExecutiveUsed) //Heuristic to human-like annotations if cyclicexcecutive is used put eventhandlers in mission
-			{
-				ScjScopeStack ss = new ScjScopeStack();
-				ss.add(scopeStack.get(0));
-				ss.add(scopeStack.get(1));
-				updateClassScope(callee.getDeclaringClass(), ss);			
-				this.scopeStacks.add(ss);
-			} else {
-				updateClassScope(callee.getDeclaringClass(), scopeStack);			
-				this.scopeStacks.add(scopeStack);
-			}
+			ScjScopeStack ss = new ScjScopeStack();			
+			ss.add(scopeStack.get(0));
+			ss.add(scopeStack.get(1));	
+			updateClassScope(callee.getDeclaringClass(), ss);			
 		}
 	}
 	
@@ -183,7 +188,12 @@ public class ScjContextSelector implements ContextSelector {
 	private void updateMethodScope(IMethod method, ScjScopeStack ss1)
 	{
 		ScjScope scjScope = ss1.getLast();
-				
+
+		//Filter out constructors, cleanUp methods
+		if (method.getName().toString().equals("cleanUp") && isSubclassOf(method, this.missionIClass) || 
+				method.getName().toString().equals("<init>"))
+			return;
+		
 		if (this.methodScopeMap.containsKey(method))
 		{
 			ScjScopeStack ss2 = this.methodScopeMap.get(method);			

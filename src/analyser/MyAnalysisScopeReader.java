@@ -24,6 +24,22 @@ import com.ibm.wala.types.ClassLoaderReference;
 import com.ibm.wala.util.config.AnalysisScopeReader;
 import com.ibm.wala.util.io.FileProvider;
 
+class MyModule implements Module
+{
+	List<ModuleEntry> entries = new ArrayList<ModuleEntry>();
+	
+	void addEntry(ModuleEntry entry)
+	{
+		this.entries.add(entry);
+	}
+	
+	@Override
+	public Iterator<ModuleEntry> getEntries() {
+		return entries.iterator();
+	}
+	
+}
+
 public class MyAnalysisScopeReader extends AnalysisScopeReader {
 	
 	public static AnalysisScope makeJavaBinaryAnalysisScope(String classPath, String scjJar, File exclusionsFile) throws IOException {
@@ -37,43 +53,42 @@ public class MyAnalysisScopeReader extends AnalysisScopeReader {
 	   * @throws IllegalStateException if there are problems reading wala properties
 	   */
 	  public static AnalysisScope makeJavaBinaryAnalysisScope(String application, String primordial, File exclusionsFile, Plugin plugIn) throws IOException {	    
-	    AnalysisScope scope = AnalysisScope.createJavaAnalysisScope();
-	    
+	    AnalysisScope scope = AnalysisScope.createJavaAnalysisScope();	    
 	    
 	    if (primordial != null)
 	    {
-	    	ClassLoaderReference walaLoader = scope.getLoader(AnalysisScope.PRIMORDIAL);
-	    	Module M = FileProvider.getJarFileModule(primordial, AnalysisScopeReader.class.getClassLoader());
-	    	scope.addToScope(walaLoader, M);
-	    	 
-	      
+	    	addClassPathToScope(primordial, scope, scope.getLoader(AnalysisScope.PRIMORDIAL));
+	    
 	    	if (new File(application).exists()) {
-	    		addClassPathToScope(application, scope, scope.getLoader(AnalysisScope.APPLICATION));
+	    		Module appMixed = FileProvider.getJarFileModule(application, AnalysisScopeReader.class.getClassLoader());	    
+			    Iterator<ModuleEntry> myit = appMixed.getEntries();
+			   		    
+			    MyModule app = new MyModule();
+			    
+			    while (myit.hasNext())
+			    {
+			    	ModuleEntry entry = myit.next();
+			    	if (!entry.getClassName().startsWith("java") && 
+			    			!entry.getClassName().startsWith("com") && 
+			    			!entry.getClassName().startsWith("joprt") && 
+			    			!entry.getClassName().startsWith("util/Dbg") && 
+			    			!entry.getClassName().startsWith("util/Timer") ){			      		
+			    		if (entry.isClassFile()) 
+			    			app.addEntry(entry);			    			
+			    	}
+			    	
+			    }
+			    		    			    
+			    scope.addToScope(scope.getLoader(AnalysisScope.APPLICATION), app);
 	    	} else {
 	    		util.error("File not found "+application);
 	    	}
 	    	
 	    } else 
-	    {    		   	   
+	    {
 		    Module appMixed = FileProvider.getJarFileModule(application, AnalysisScopeReader.class.getClassLoader());	    
 		    Iterator<ModuleEntry> myit = appMixed.getEntries();
-		   
-		    class MyModule implements Module
-		    {
-		    	List<ModuleEntry> entries = new ArrayList<ModuleEntry>();
-		    	
-		    	void addEntry(ModuleEntry entry)
-		    	{
-		    		this.entries.add(entry);
-		    	}
-		    	
-				@Override
-				public Iterator<ModuleEntry> getEntries() {
-					return entries.iterator();
-				}
-		    	
-		    }
-		    
+		   		    
 		    MyModule app = new MyModule(), prim = new MyModule();
 		    
 		    while (myit.hasNext())
@@ -96,7 +111,6 @@ public class MyAnalysisScopeReader extends AnalysisScopeReader {
 		    scope.addToScope(scope.getLoader(AnalysisScope.PRIMORDIAL), prim);
 		    scope.addToScope(scope.getLoader(AnalysisScope.APPLICATION), app);		    
 	    }
-	   
 	    
 	    return scope;
 	  }

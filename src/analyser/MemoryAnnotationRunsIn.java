@@ -26,14 +26,18 @@ public class MemoryAnnotationRunsIn extends MemoryAnnotation {
 	}
 
 	@Override
-	public String toString() {	
-		String str;
+	public String toString() {			
+		if (this.method.getName().toString().equals("<init>") || 
+				this.method.getName().toString().equals("initialize")) 
+		{		
+			return "";
+		}
 		
 		if (this.scopeStack == null || this.getScopeSet().size() <= 1) {
 			if (this.scope == null)
 				this.scope = (ScjScope) this.getScopeSet().toArray()[0];
 			
-			str = "@RunsIn("+ this.humaniseStr(this.scope.getName().toString())+") Method: "+this.method.getName()+"() from Class: "+this.getClassName()+"\n";
+			return "@RunsIn("+ this.humaniseStr(this.scope.getName().toString())+") Method: "+this.method.getName()+"() from Class: "+this.getClassName()+"\n";
 			
 		}else {
 			/*StringBuilder builder = new StringBuilder();
@@ -45,13 +49,8 @@ public class MemoryAnnotationRunsIn extends MemoryAnnotation {
 			
 			builder.append("Warning - Method: "+this.method.getName()+" has conflicting @RunsIn annotations\n");
 			return builder.toString();*/
-			str = "@RunsIn(CALLER) Method: "+this.method.getName()+" from Class: "+this.getClassName()+"\n";
-		}
-		
-		if (!this.method.getName().toString().equals("<init>"))
-			return str;
-		else
-			return "";			
+			return "@RunsIn(CALLER) Method: "+this.method.getName()+" from Class: "+this.getClassName()+"\n";
+		}		
 	}
 
 	@Override

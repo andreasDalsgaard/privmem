@@ -44,7 +44,13 @@ public class ProblemStaticField extends Problem {
 				!this.ikn.getNode().getMethod().getDeclaringClass().getName().toString().startsWith("Ljava/") && 
 				!this.showPrimordial )
 			return true;
-			
+		
+		if (ScjMemoryScopeAnalysis.analyseWithoutJRE) {
+			if ( this.pk.getField().getName().toString().equals("RegisteredEventHandler") &&
+					!this.showPrimordial )
+				return true;
+		}
+		
 		return false;
 	}
 }

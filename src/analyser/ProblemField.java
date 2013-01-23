@@ -12,6 +12,8 @@ package analyser;
 
 import com.ibm.wala.analysis.reflection.InstanceKeyWithNode;
 import com.ibm.wala.ipa.callgraph.propagation.InstanceFieldKey;
+import com.ibm.wala.ipa.callgraph.propagation.InstanceKey;
+import com.ibm.wala.ipa.callgraph.propagation.NormalAllocationInNode;
 
 public class ProblemField extends Problem {
 
@@ -19,9 +21,16 @@ public class ProblemField extends Problem {
 	InstanceFieldKey pk;
 	ScjContext iContext;
 	ScjContext pContext;
+	private String pointerStr;
 	
 	public ProblemField(InstanceKeyWithNode ikn, InstanceFieldKey pk) {		
 		this.pk = pk;
+		
+		if (pk.getInstanceKey() instanceof NormalAllocationInNode) {
+			pointerStr = "   pointer in: "+((NormalAllocationInNode)pk.getInstanceKey()).getNode().getContext().toString()+"\n";
+		}
+		
+		
 		this.ikn = ikn;		
 	}
 
@@ -30,7 +39,8 @@ public class ProblemField extends Problem {
 		if ( !this.isPrimordial() ) {
 			return "Field mismatch between scope of pointer and instance, type: "+this.pk.getField().getDeclaringClass() + " field: " + this.pk.getField().getName()+ "\n"+	    					   					
 					"   in class: "+this.ikn.getNode().getMethod().getDeclaringClass() + " in method: " + this.ikn.getNode().getMethod().getName()+ "\n" +
-					"   in scope: "+this.ikn.getNode().getContext() + "\n";
+					"   in scope: "+this.ikn.getNode().getContext() + "\n"+
+					pointerStr;			
 		} else {
 			return "";
 		}

@@ -14,6 +14,7 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Set;
@@ -22,8 +23,12 @@ import com.ibm.wala.analysis.pointers.BasicHeapGraph;
 import com.ibm.wala.analysis.pointers.HeapGraph;
 import com.ibm.wala.analysis.reflection.InstanceKeyWithNode;
 import com.ibm.wala.analysis.reflection.ReflectionContextInterpreter;
+import com.ibm.wala.classLoader.ClassLoaderFactory;
+import com.ibm.wala.classLoader.ClassLoaderFactoryImpl;
 import com.ibm.wala.classLoader.IClass;
+import com.ibm.wala.classLoader.IClassLoader;
 import com.ibm.wala.classLoader.IMethod;
+import com.ibm.wala.classLoader.Module;
 import com.ibm.wala.ipa.callgraph.AnalysisCache;
 import com.ibm.wala.ipa.callgraph.AnalysisOptions;
 import com.ibm.wala.ipa.callgraph.AnalysisOptions.ReflectionOptions;
@@ -34,6 +39,8 @@ import com.ibm.wala.ipa.callgraph.CallGraphBuilder;
 import com.ibm.wala.ipa.callgraph.Context;
 import com.ibm.wala.ipa.callgraph.ContextSelector;
 import com.ibm.wala.ipa.callgraph.Entrypoint;
+import com.ibm.wala.ipa.callgraph.impl.ClassHierarchyClassTargetSelector;
+import com.ibm.wala.ipa.callgraph.impl.ClassHierarchyMethodTargetSelector;
 import com.ibm.wala.ipa.callgraph.impl.DefaultContextSelector;
 import com.ibm.wala.ipa.callgraph.impl.DelegatingContextSelector;
 import com.ibm.wala.ipa.callgraph.impl.Util;
@@ -60,6 +67,7 @@ import com.ibm.wala.ipa.callgraph.propagation.cfa.ZeroXCFABuilder;
 import com.ibm.wala.ipa.callgraph.propagation.cfa.ZeroXInstanceKeys;
 import com.ibm.wala.ipa.cha.ClassHierarchy;
 import com.ibm.wala.ipa.cha.IClassHierarchy;
+import com.ibm.wala.ipa.summaries.BypassClassTargetSelector;
 import com.ibm.wala.shrikeCT.InvalidClassFileException;
 import com.ibm.wala.util.CancelException;
 import com.ibm.wala.util.WalaException;
@@ -68,10 +76,14 @@ import com.ibm.wala.util.io.CommandLine;
 
 public class ScjMemoryScopeAnalysis {
 
+	
+	public static Boolean analyseWithoutJRE = false;
+
 	public static void main(String[] args) throws WalaException {
 		String primordial, main;
 		Properties p = CommandLine.parse(args);
 		int problemCounter = 0;
+		boolean appAlone = false;
 		
 		if (p.getProperty("application") == null ) 		
 			util.print_usage();
@@ -85,16 +97,27 @@ public class ScjMemoryScopeAnalysis {
 			primordial = p.getProperty("primordial");
 		else
 			primordial = null;
+		
+		if (p.getProperty("appAlone") != null)
+		{
+			if (p.getProperty("primordial") != null)
+				util.print_usage();
+			
+			String appAloneStr = p.getProperty("appAlone");
+			
+			if (appAloneStr.equals("true") || appAloneStr.equals("True") || appAloneStr.equals("1"))
+				appAlone = true;
+		}
 			
 		try {
-			Set<Problem> problems = buildPointsTo(p.getProperty("application"), main, primordial);
+			Set<Problem> problems = buildPointsTo(p.getProperty("application"), main, primordial, appAlone);
 			
 			Iterator<Problem> pItr = problems.iterator();			
 			System.out.print("Problems:\n");
 			
 			while ( pItr.hasNext() )
 			{	
-				String strNext = pItr.next().toString();								
+				String strNext = pItr.next().toString();				
 				if (!strNext.isEmpty()) {
 					System.out.print(strNext+"\n");
 					problemCounter++;
@@ -107,11 +130,17 @@ public class ScjMemoryScopeAnalysis {
 		}
 	}
 
-	public static Set<Problem> buildPointsTo(String application, String main_class, String primordial) throws WalaException, IllegalArgumentException, CancelException, IOException, InvalidClassFileException {	
-		
-	    AnalysisScope scope = MyAnalysisScopeReader.makeJavaBinaryAnalysisScope(application, primordial, null);
+	public static Set<Problem> buildPointsTo(String application, String main_class, String primordial, boolean appAlone) throws WalaException, IllegalArgumentException, CancelException, IOException, InvalidClassFileException 	
+	{
+		analyseWithoutJRE = appAlone;
+		return buildPointsTo(application, main_class, primordial);
+	}
+	
+	public static Set<Problem> buildPointsTo(String application, String main_class, String primordial) throws WalaException, IllegalArgumentException, CancelException, IOException, InvalidClassFileException 
+	{					
+	    AnalysisScope scope = MyAnalysisScopeReader.makeJavaBinaryAnalysisScope(application, primordial, null);	    
 	    ClassHierarchy cha = ClassHierarchy.make(scope);
-	    Iterable<Entrypoint> entrypoints = com.ibm.wala.ipa.callgraph.impl.Util.makeMainEntrypoints(scope, cha, "L"+main_class);	    
+	    Iterable<Entrypoint> entrypoints = com.ibm.wala.ipa.callgraph.impl.Util.makeMainEntrypoints(scope, cha, "L"+main_class);
 	    AnalysisOptions options = new AnalysisOptions(scope, entrypoints);   
 	    options.setReflectionOptions(ReflectionOptions.NONE);
 	    
@@ -126,6 +155,7 @@ public class ScjMemoryScopeAnalysis {
 	    runAnalysis(bhg.getPointerAnalysis(), (HeapGraph)bhg, problems, annotations);	
 	    	    
 	    /* Generate annotations */
+	    System.out.print("Annotations:\n");
 	    
 	    //RunsIn Annotations
 	    Iterator<Entry<IMethod, ScjScopeStack>> pItr = ((ScjContextSelector)scjContextSelector).methodScopeMap.entrySet().iterator();		
