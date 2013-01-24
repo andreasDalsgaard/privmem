@@ -30,7 +30,7 @@ import com.ibm.wala.util.io.CommandLine;
 public class ScjMemoryScopeAnalysisTest {
 
 	ScjMemoryScopeAnalysis memAnalysis;
-	String workingDir = System.getProperty("user.dir")+"/../../artikler/scjmemana/experiments/";
+	String workingDir = System.getProperty("user.dir")+"/../../papers/mrascj/experiments/";
 	
 	@Test
 	public void testMinepump() {		

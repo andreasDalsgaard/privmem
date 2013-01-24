@@ -27,11 +27,6 @@ public class MemoryAnnotationRunsIn extends MemoryAnnotation {
 
 	@Override
 	public String toString() {			
-		if (this.method.getName().toString().equals("<init>") || 
-				this.method.getName().toString().equals("initialize")) 
-		{		
-			return "";
-		}
 		
 		if (this.scopeStack == null || this.getScopeSet().size() <= 1) {
 			if (this.scope == null)

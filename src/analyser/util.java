@@ -49,9 +49,10 @@ public class util {
 
 	public static void print_usage() {
 		error("Usage: Two arguments should be given. \n" +
-	      		"\t-primordial jop_scj.jar (if only -application is specified java and javax will be added as primordial).\n" +
-	      		"\t-application application.jar jar file containing application.\n" +
-	      		"\t-main class_name_containing_main_function(default: use Main)\n\n" +
+	      		"\t-primordial jop_scj.jar : if only -application is specified java and javax will be added as primordial.\n" +
+	      		"\t-application application.jar : jar file containing application.\n" +
+	      		"\t-main class_name_containing_main_function : default is to use Main\n\n" +
+	      		"\t-appAlone True : used to enable analysing the application without a SCJ implementation.\n" +
 	      		"TIP: if the jar files are placed in the root of the eclipse workspace dir. prepend 'filename.jar' with: ${workspace_loc}/\n" );
 	}
 	

@@ -1,1 +1,1 @@
-* Shouldn't we analyze the Safelet?
+* resolve issue in JOP/SCJ with current_mission/getNextMission
